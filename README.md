@@ -48,7 +48,7 @@ Clone the repository and build from source using Cargo, Rust's package manager a
 git clone https://github.com/rotkonetworks/namiska
 cd namiska
 cargo build --release
-cp target/release/namiska ~/.local/bin/
+cp target/release/namiska /usr/local/bin
 ```
 
 ### From Binary
@@ -58,7 +58,7 @@ Download the latest binary release directly and make it executable:
 ```sh
 curl -s https://api.github.com/repos/rotkonetworks/namiska/releases/latest | grep "browser_download_url.*namiska" | cut -d '"' -f 4 | wget -i - -O namiska
 chmod +x namiska
-mv namiska ~/.local/bin/
+mv namiska /usr/local/bin
 ```
 
 ### Run
@@ -80,6 +80,7 @@ For continuous background operation, you can install Namiska as a systemd user s
 ```sh
 mkdir -p ~/.config/systemd/user
 cp namiska.service ~/.config/systemd/user/
+# ln -s $(pwd)/namiska.service ~/.config/systemd/user/namiska.service # or use a symlink
 systemctl --user enable --now namiska
 ```
 
