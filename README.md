@@ -15,7 +15,7 @@ to move the mouse cursor around your screen.
 
 ## Requirements
 
-Namiska works on Linux, macOS, and potentially on Windows with some modifications.
+Namiska works on Linux and potentially on macOS and Windows.
 
 ### Linux
 
@@ -89,6 +89,7 @@ Its a bit painful to customize keybindings due to rust being staticly typed.
 I recommend you fork the code and build with changed const values for keybindings.
 
 ## Customizing sensitivity
+
 Adding config.toml into config directory will alllow you to dynamically
 change the sensitivity of the mouse movement.
 
