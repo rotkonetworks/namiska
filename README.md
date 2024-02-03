@@ -12,7 +12,6 @@ to move the mouse cursor around your screen.
 - **Meta + RCtrl**: Perform a left-click.
 - **Meta + RShift**: Perform a right-click.
 
-Key bindings can be customized by modifying `config.toml` located at `~/.config/namiska/config.toml`.
 
 ## Requirements
 
@@ -86,8 +85,14 @@ systemctl --user enable --now namiska
 
 ## Customizing Keybindings
 
-To customize keybindings, create a config directory and copy the sample `config.toml` into it. Modify this file according to your preferences.
+Its a bit painful to customize keybindings due to rust being staticly typed.
+I recommend you fork the code and build with changed const values for keybindings.
 
+## Customizing sensitivity
+Adding config.toml into config directory will alllow you to dynamically
+change the sensitivity of the mouse movement.
+
+```sh
 ```sh
 mkdir -p ~/.config/namiska
 cp config.toml ~/.config/namiska/
