@@ -1,34 +1,100 @@
 # namiska
 
-Control mouse with your keyboard. 
+Namiska allows you to control your mouse cursor using keyboard shortcuts.
+It's designed to enhance productivity for users who lack thinkpad and
+prefer keyboard navigation over traditional mouse or touchpad interactions.
 
 ## Usage
-Super/Meta/LWIN as modifier key and arrow keys to move the mouse.
-Meta + RCtrl to left click.
-Meta + RShift  to right click.
 
-You can change the keys configuring the config.toml at ~/.config/namiska/config.toml
+Use the Super/Meta/Windows key as a modifier key along with the arrow keys
+to move the mouse cursor around your screen.
+
+- **Meta + RCtrl**: Perform a left-click.
+- **Meta + RShift**: Perform a right-click.
+
+Key bindings can be customized by modifying `config.toml` located at `~/.config/namiska/config.toml`.
 
 ## Requirements
-Linux users may have to install libxdo-dev if they are using X11.
 
-### On Debian:
-```sh
-apt-get install libxdo-dev
-```
-### On Arch:
-```sh
-pacman -S xdotool
-```
-### Windows: 
-idk
+Namiska works on Linux, macOS, and potentially on Windows with some modifications.
 
-### MacOS:
-should work?
+### Linux
+
+For X11 users, `libxdo-dev` or `xdotool` might be required.
+
+- **Debian/Ubuntu**:
+  ```sh
+  sudo apt-get install libxdo-dev
+  ```
+- **Arch Linux**:
+  ```sh
+  sudo pacman -S xdotool
+  ```
+
+### Windows
+
+Currently, there's no direct support or installation method provided for Windows users. Stay tuned for future updates.
+
+### macOS
+
+Namiska should work on macOS, leveraging accessibility features to control the mouse. Ensure you have permissions set correctly for terminal access to control your computer.
 
 ## Installation
 
+### From Source
 
+Clone the repository and build from source using Cargo, Rust's package manager and build system.
 
-# LICENSE
-MIT LICENSE @ 2024 Rotko Networks
+```sh
+git clone https://github.com/rotkonetworks/namiska
+cd namiska
+cargo build --release
+cp target/release/namiska ~/.local/bin/
+```
+
+### From Binary
+
+Download the latest binary release directly and make it executable:
+
+```sh
+curl -s https://api.github.com/repos/rotkonetworks/namiska/releases/latest | grep "browser_download_url.*namiska" | cut -d '"' -f 4 | wget -i - -O namiska
+chmod +x namiska
+mv namiska ~/.local/bin/
+```
+
+### Run
+
+To start Namiska, simply run it from the terminal. To stop it, you can use `pkill`.
+
+```sh
+# Run Namiska
+namiska &
+
+# To stop Namiska
+pkill namiska
+```
+
+### Install as a systemd service
+
+For continuous background operation, you can install Namiska as a systemd user service.
+
+```sh
+mkdir -p ~/.config/systemd/user
+cp namiska.service ~/.config/systemd/user/
+systemctl --user enable --now namiska
+```
+
+## Customizing Keybindings
+
+To customize keybindings, create a config directory and copy the sample `config.toml` into it. Modify this file according to your preferences.
+
+```sh
+mkdir -p ~/.config/namiska
+cp config.toml ~/.config/namiska/
+```
+
+## License
+
+Namiska is open-sourced under the MIT License. See the LICENSE file for more details.
+
+© 2024 Rotko Networks

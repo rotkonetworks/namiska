@@ -1,0 +1,5 @@
+# configs
+base_distance = 5
+acceleration_factor = 0.05
+max_distance = 150
+sleep_duration = 10

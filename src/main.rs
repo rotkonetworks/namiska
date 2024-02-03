@@ -1,8 +1,10 @@
 use device_query::{DeviceQuery, DeviceState, keymap::Keycode};
+use dirs::config_dir;
 use enigo::*;
-use std::{thread, time::{Duration, Instant}};
+use std::{fs, path::PathBuf, thread, time::{Duration, Instant}};
+use serde::Deserialize;
 
-// Configuration for key mappings
+// Configurate keycodes
 const META_KEY: Keycode = Keycode::Meta;
 const MOVE_LEFT_KEY: Keycode = Keycode::Left;
 const MOVE_RIGHT_KEY: Keycode = Keycode::Right;
@@ -11,12 +13,34 @@ const MOVE_DOWN_KEY: Keycode = Keycode::Down;
 const MOUSE_LEFT_CLICK_KEY: Keycode = Keycode::RControl;
 const MOUSE_RIGHT_CLICK_KEY: Keycode = Keycode::RShift;
 
+#[derive(Deserialize, Default)]
+struct Config {
+    base_distance: Option<i32>,
+    acceleration_factor: Option<f64>,
+    max_distance: Option<i32>,
+    sleep_duration: Option<u64>,
+}
+
+impl Config {
+    fn load() -> Self {
+        let path = config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("namiska/config.toml");
+
+        fs::read_to_string(&path)
+            .map(|contents| toml::from_str(&contents).unwrap_or_default())
+            .unwrap_or_default()
+    }
+}
+
 fn main() {
+    let config = Config::load();
+    let sleep_duration = Duration::from_millis(config.sleep_duration.unwrap_or(10));
     let device_state = DeviceState::new();
     let mut enigo = Enigo::new();
-    let sleep_duration = Duration::from_millis(10);
     let mut direction_state = DirectionState::new();
     let mut mouse_state = MouseState::new();
+
 
     loop {
         let keys = device_state.get_keys();
@@ -37,7 +61,7 @@ fn main() {
 
         if let Some((directions, elapsed)) = direction_state.calculate_elapsed(now) {
             for direction in directions {
-                move_mouse(&mut enigo, direction, elapsed);
+                move_mouse(&mut enigo, direction, elapsed, &config);
             }
         }
 
@@ -67,8 +91,10 @@ fn handle_mouse_actions(enigo: &mut Enigo, keys: &[Keycode], mouse_state: &mut M
     mouse_state.update(enigo, keys);
 }
 
-fn move_mouse(enigo: &mut Enigo, direction: Direction, elapsed: Duration) {
-    let distance = calculate_distance(elapsed.as_millis());
+
+// Adjust where `move_mouse` is called to pass `config` as well.
+fn move_mouse(enigo: &mut Enigo, direction: Direction, elapsed: Duration, config: &Config) {
+    let distance = calculate_distance(config, elapsed.as_millis());
     match direction {
         Direction::Left => enigo.mouse_move_relative(-distance, 0),
         Direction::Right => enigo.mouse_move_relative(distance, 0),
@@ -77,10 +103,11 @@ fn move_mouse(enigo: &mut Enigo, direction: Direction, elapsed: Duration) {
     }
 }
 
-fn calculate_distance(elapsed: u128) -> i32 {
-    let base_distance = 5;
-    let acceleration_factor = 0.05;
-    let max_distance = 100;
+fn calculate_distance(config: &Config, elapsed: u128) -> i32 {
+    let base_distance = config.base_distance.unwrap_or(5);
+    let acceleration_factor = config.acceleration_factor.unwrap_or(0.05);
+    let max_distance = config.max_distance.unwrap_or(150);
+
     std::cmp::min(base_distance + (elapsed as f64 * acceleration_factor) as i32, max_distance)
 }
 
@@ -130,6 +157,7 @@ impl MouseState {
         }
     }
 
+// Configuration for key mappings
    fn update(&mut self, enigo: &mut Enigo, keys: &[Keycode]) {
 
         let left = keys.contains(&MOUSE_LEFT_CLICK_KEY);
