@@ -1,17 +1,28 @@
+
 use device_query::{DeviceQuery, DeviceState, keymap::Keycode};
 use dirs::config_dir;
 use enigo::*;
 use std::{fs, path::PathBuf, thread, time::{Duration, Instant}};
 use serde::Deserialize;
 
-// Configurate keycodes
-const META_KEY: Keycode = Keycode::Meta;
-const MOVE_LEFT_KEY: Keycode = Keycode::Left;
-const MOVE_RIGHT_KEY: Keycode = Keycode::Right;
-const MOVE_UP_KEY: Keycode = Keycode::Up;
-const MOVE_DOWN_KEY: Keycode = Keycode::Down;
-const MOUSE_LEFT_CLICK_KEY: Keycode = Keycode::RControl;
-const MOUSE_RIGHT_CLICK_KEY: Keycode = Keycode::RShift;
+#[derive(PartialEq, Clone, Copy)]
+enum Direction {
+    Left,
+    Right,
+    Up,
+    Down,
+}
+
+#[derive(Deserialize, Default)]
+struct KeyConfig {
+    meta: Option<String>,
+    left: Option<String>,
+    right: Option<String>,
+    up: Option<String>,
+    down: Option<String>,
+    mouse_left: Option<String>,
+    mouse_right: Option<String>,
+}
 
 #[derive(Deserialize, Default)]
 struct Config {
@@ -19,6 +30,7 @@ struct Config {
     acceleration_factor: Option<f64>,
     max_distance: Option<i32>,
     sleep_duration: Option<u64>,
+    keys: Option<KeyConfig>,
 }
 
 impl Config {
@@ -31,68 +43,101 @@ impl Config {
             .map(|contents| toml::from_str(&contents).unwrap_or_default())
             .unwrap_or_default()
     }
-}
 
-fn main() {
-    let config = Config::load();
-    let sleep_duration = Duration::from_millis(config.sleep_duration.unwrap_or(10));
-    let device_state = DeviceState::new();
-    let mut enigo = Enigo::new();
-    let mut direction_state = DirectionState::new();
-    let mut mouse_state = MouseState::new();
+    fn get_key(&self, key_str: Option<&String>, default: Keycode) -> Keycode {
+        key_str
+            .and_then(|s| match s.to_uppercase().as_str() {
+                "META" | "SUPER" | "WIN" => Some(Keycode::Meta),
+                "CTRL" | "CONTROL" | "LCTRL" => Some(Keycode::LControl),
+                "RCTRL" | "RCONTROL" => Some(Keycode::RControl),
+                "ALT" | "LALT" => Some(Keycode::LAlt),
+                "RALT" => Some(Keycode::RAlt),
+                "SHIFT" | "LSHIFT" => Some(Keycode::LShift),
+                "RSHIFT" => Some(Keycode::RShift),
+                "UP" => Some(Keycode::Up),
+                "DOWN" => Some(Keycode::Down),
+                "LEFT" => Some(Keycode::Left),
+                "RIGHT" => Some(Keycode::Right),
+                _ => None
+            })
+        .unwrap_or(default)
+    }
 
+    fn meta_key(&self) -> Keycode {
+        self.keys.as_ref()
+            .and_then(|k| k.meta.as_ref())
+            .map(|s| self.get_key(Some(s), Keycode::Meta))
+            .unwrap_or(Keycode::Meta)
+    }
 
-    loop {
-        let keys = device_state.get_keys();
-        let now = Instant::now();
+    fn move_keys(&self) -> (Keycode, Keycode, Keycode, Keycode) {
+        let default_config = KeyConfig::default();
+        let keys = self.keys.as_ref().unwrap_or(&default_config);
+        (
+            self.get_key(keys.left.as_ref(), Keycode::Left),
+            self.get_key(keys.right.as_ref(), Keycode::Right),
+            self.get_key(keys.up.as_ref(), Keycode::Up),
+            self.get_key(keys.down.as_ref(), Keycode::Down),
+        )
+    }
 
-        if keys.contains(&META_KEY) {
-            handle_mouse_actions(&mut enigo, &keys, &mut mouse_state);
-            let directions = detect_directions(&keys);
-            if !directions.is_empty() {
-                direction_state.update(&directions, now);
-            } else {
-                direction_state.reset();
-            }
-        } else {
-            direction_state.reset();
-            mouse_state.reset(&mut enigo);
-        }
-
-        if let Some((directions, elapsed)) = direction_state.calculate_elapsed(now) {
-            for direction in directions {
-                move_mouse(&mut enigo, direction, elapsed, &config);
-            }
-        }
-
-        thread::sleep(sleep_duration);
+    fn mouse_keys(&self) -> (Keycode, Keycode) {
+        let default_config = KeyConfig::default();
+        let keys = self.keys.as_ref().unwrap_or(&default_config);
+        (
+            self.get_key(keys.mouse_left.as_ref(), Keycode::RControl),
+            self.get_key(keys.mouse_right.as_ref(), Keycode::RShift),
+        )
     }
 }
 
-fn detect_directions(keys: &[Keycode]) -> Vec<Direction> {
+struct KeyState {
+    meta_key: Keycode,
+    left_key: Keycode,
+    right_key: Keycode,
+    up_key: Keycode,
+    down_key: Keycode,
+    mouse_left_key: Keycode,
+    mouse_right_key: Keycode,
+}
+
+impl KeyState {
+    fn from_config(config: &Config) -> Self {
+        let (left, right, up, down) = config.move_keys();
+        let (mouse_left, mouse_right) = config.mouse_keys();
+        Self {
+            meta_key: config.meta_key(),
+            left_key: left,
+            right_key: right,
+            up_key: up,
+            down_key: down,
+            mouse_left_key: mouse_left,
+            mouse_right_key: mouse_right,
+        }
+    }
+}
+
+fn detect_directions(keys: &[Keycode], key_state: &KeyState) -> Vec<Direction> {
     let mut directions = Vec::new();
-    if keys.contains(&MOVE_LEFT_KEY) {
+    if keys.contains(&key_state.left_key) {
         directions.push(Direction::Left);
     }
-    if keys.contains(&MOVE_RIGHT_KEY) {
+    if keys.contains(&key_state.right_key) {
         directions.push(Direction::Right);
     }
-    if keys.contains(&MOVE_UP_KEY) {
+    if keys.contains(&key_state.up_key) {
         directions.push(Direction::Up);
     }
-    if keys.contains(&MOVE_DOWN_KEY) {
+    if keys.contains(&key_state.down_key) {
         directions.push(Direction::Down);
     }
     directions
 }
 
-fn handle_mouse_actions(enigo: &mut Enigo, keys: &[Keycode], mouse_state: &mut MouseState) {
-    // Update mouse button state based on current keys pressed
-    mouse_state.update(enigo, keys);
+fn handle_mouse_actions(enigo: &mut Enigo, keys: &[Keycode], mouse_state: &mut MouseState, key_state: &KeyState) {
+    mouse_state.update(enigo, keys, key_state);
 }
 
-
-// Adjust where `move_mouse` is called to pass `config` as well.
 fn move_mouse(enigo: &mut Enigo, direction: Direction, elapsed: Duration, config: &Config) {
     let distance = calculate_distance(config, elapsed.as_millis());
     match direction {
@@ -157,11 +202,9 @@ impl MouseState {
         }
     }
 
-// Configuration for key mappings
-   fn update(&mut self, enigo: &mut Enigo, keys: &[Keycode]) {
-
-        let left = keys.contains(&MOUSE_LEFT_CLICK_KEY);
-        let right = keys.contains(&MOUSE_RIGHT_CLICK_KEY);
+    fn update(&mut self, enigo: &mut Enigo, keys: &[Keycode], key_state: &KeyState) {
+        let left = keys.contains(&key_state.mouse_left_key);
+        let right = keys.contains(&key_state.mouse_right_key);
 
         if left && !self.left_pressed {
             enigo.mouse_down(MouseButton::Left);
@@ -192,10 +235,38 @@ impl MouseState {
     }
 }
 
-#[derive(PartialEq, Clone, Copy)]
-enum Direction {
-    Left,
-    Right,
-    Up,
-    Down,
+fn main() {
+    let config = Config::load();
+    let key_state = KeyState::from_config(&config);
+    let sleep_duration = Duration::from_millis(config.sleep_duration.unwrap_or(10));
+    let device_state = DeviceState::new();
+    let mut enigo = Enigo::new();
+    let mut direction_state = DirectionState::new();
+    let mut mouse_state = MouseState::new();
+
+    loop {
+        let keys = device_state.get_keys();
+        let now = Instant::now();
+
+        if keys.contains(&key_state.meta_key) {
+            handle_mouse_actions(&mut enigo, &keys, &mut mouse_state, &key_state);
+            let directions = detect_directions(&keys, &key_state);
+            if !directions.is_empty() {
+                direction_state.update(&directions, now);
+            } else {
+                direction_state.reset();
+            }
+        } else {
+            direction_state.reset();
+            mouse_state.reset(&mut enigo);
+        }
+
+        if let Some((directions, elapsed)) = direction_state.calculate_elapsed(now) {
+            for direction in directions {
+                move_mouse(&mut enigo, direction, elapsed, &config);
+            }
+        }
+
+        thread::sleep(sleep_duration);
+    }
 }

@@ -3,3 +3,21 @@ base_distance = 5
 acceleration_factor = 0.05
 max_distance = 150
 sleep_duration = 10
+
+[keys]
+# For modifier keys:
+# - "META" or "SUPER" or "WIN"
+# - "LCTRL" or "CTRL" or "CONTROL"
+# - "RCTRL" or "RCONTROL"
+# - "LALT" or "ALT"
+# - "RALT"
+# - "LSHIFT" or "SHIFT"
+# - "RSHIFT"
+
+meta = "META"
+left = "LEFT"
+right = "RIGHT"
+up = "UP"
+down = "DOWN"
+mouse_left = "RCTRL"
+mouse_right = "RSHIFT"
